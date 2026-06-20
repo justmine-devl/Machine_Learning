@@ -36,6 +36,11 @@ def focal_bce_with_logits(
     return loss.mean()
 
 
+def soft_cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    # Keep multi-hot targets unnormalized, matching the author's harder-sample weighting.
+    return -(targets * F.log_softmax(logits, dim=-1)).sum(dim=-1).mean()
+
+
 def make_pos_weight(df: pd.DataFrame, config: TrainingConfig) -> Optional[torch.Tensor]:
     if not config.use_pos_weight or df.empty:
         return None
@@ -49,6 +54,8 @@ def make_pos_weight(df: pd.DataFrame, config: TrainingConfig) -> Optional[torch.
 
 def compute_loss(logits: torch.Tensor, targets: torch.Tensor, config: TrainingConfig, pos_weight: Optional[torch.Tensor] = None) -> torch.Tensor:
     targets = smooth_targets(targets, config.label_smoothing)
+    if config.loss_type == "cross_entropy":
+        return soft_cross_entropy(logits, targets)
     if pos_weight is not None:
         pos_weight = pos_weight.to(logits.device)
     if config.loss_type == "bce":
@@ -85,6 +92,3 @@ def compute_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0
     }
     metrics.update(per_class_auc)
     return metrics
-
-
-

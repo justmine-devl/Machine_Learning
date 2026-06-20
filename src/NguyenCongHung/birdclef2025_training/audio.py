@@ -30,13 +30,22 @@ def load_audio(
     return wave.astype(np.float32)
 
 
-def crop_or_pad_wave(wave: np.ndarray, target_len: int, mode: str = "train", pad_mode: str = "repeat") -> np.ndarray:
+def crop_or_pad_wave(wave: np.ndarray, target_len: int, mode: str = "train", pad_mode: str = "zero_right") -> np.ndarray:
     if len(wave) < target_len:
+        missing = target_len - len(wave)
         if pad_mode == "repeat" and len(wave) > 0:
             repeats = math.ceil(target_len / len(wave))
             wave = np.tile(wave, repeats)
+        elif pad_mode == "zero_left":
+            wave = np.pad(wave, (missing, 0), mode="constant")
+        elif pad_mode == "zero_random":
+            left = np.random.randint(0, missing + 1) if mode == "train" else missing // 2
+            wave = np.pad(wave, (left, missing - left), mode="constant")
+        elif pad_mode == "zero_center":
+            left = missing // 2
+            wave = np.pad(wave, (left, missing - left), mode="constant")
         else:
-            wave = np.pad(wave, (0, max(0, target_len - len(wave))))
+            wave = np.pad(wave, (0, missing), mode="constant")
     if len(wave) > target_len:
         if mode == "train":
             start = np.random.randint(0, len(wave) - target_len + 1)
@@ -81,12 +90,7 @@ def mixup_focal_pseudo(
     y_focal: torch.Tensor,
     x_pseudo: torch.Tensor,
     y_pseudo: torch.Tensor,
-    alpha: float,
+    lam: float,
 ) -> Tuple[torch.Tensor, torch.Tensor, float]:
-    if alpha <= 0:
-        return x_focal, y_focal, 1.0
-    lam = np.random.beta(alpha, alpha)
+    lam = float(np.clip(lam, 0.0, 1.0))
     return lam * x_focal + (1.0 - lam) * x_pseudo, lam * y_focal + (1.0 - lam) * y_pseudo, float(lam)
-
-
-

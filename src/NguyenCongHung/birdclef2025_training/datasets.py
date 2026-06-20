@@ -87,12 +87,21 @@ def target_from_row(row: pd.Series, frames_per_clip: int) -> np.ndarray:
 
 
 class LabeledFocalDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, config: TrainingConfig, mode: str = "train", augment: bool = False, strength: str = "moderate"):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        config: TrainingConfig,
+        mode: str = "train",
+        augment: bool = False,
+        strength: str = "moderate",
+        padding_mode: str = "zero_left",
+    ):
         self.df = df.reset_index(drop=True)
         self.config = config
         self.mode = mode
         self.augment = augment
         self.strength = strength
+        self.padding_mode = padding_mode
         self.target_len = int(config.sample_rate * config.train_duration_sec)
 
     def __len__(self) -> int:
@@ -101,7 +110,7 @@ class LabeledFocalDataset(Dataset):
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         row = self.df.iloc[idx]
         wave = load_audio(Path(row["resolved_path"]), sample_rate=self.config.sample_rate)
-        wave = crop_or_pad_wave(wave, self.target_len, mode=self.mode, pad_mode="repeat")
+        wave = crop_or_pad_wave(wave, self.target_len, mode=self.mode, pad_mode=self.padding_mode)
         if self.augment:
             wave = augment_wave(wave, self.config, strength=self.strength)
         target = target_from_row(row, self.config.frames_per_clip)
@@ -155,7 +164,7 @@ class UnlabeledSoundscapeDataset(Dataset):
             offset=float(row["window_start_sec"]),
             duration=self.config.train_duration_sec,
         )
-        wave = crop_or_pad_wave(wave, self.target_len, mode="valid", pad_mode="repeat")
+        wave = crop_or_pad_wave(wave, self.target_len, mode="valid", pad_mode="zero_right")
         if self.augment:
             wave = augment_wave(wave, self.config, strength=self.strength)
         return {
@@ -179,17 +188,30 @@ class PseudoLabeledSoundscapeDataset(Dataset):
         self.augment = augment
         self.strength = strength
         self.groups = list(self.pseudo_df.groupby(["filename", "window_start_sec"], sort=False))
+        soundscape_to_group_indices: Dict[str, List[int]] = {}
+        for group_index, (_, group) in enumerate(self.groups):
+            filepath = str(group["filepath"].iloc[0])
+            soundscape_to_group_indices.setdefault(filepath, []).append(group_index)
+        self.soundscape_group_indices = list(soundscape_to_group_indices.values())
+        if "soundscape_weight" in self.pseudo_df.columns:
+            weights_by_path = self.pseudo_df.groupby("filepath", sort=False)["soundscape_weight"].first().astype(float)
+        else:
+            weights_by_path = self.pseudo_df.groupby("filepath", sort=False)[CLASS_ORDER].max().sum(axis=1).astype(float)
+        weights_by_path.index = weights_by_path.index.astype(str)
+        soundscape_weights = [max(float(weights_by_path.get(filepath, 0.0)), 1e-8) for filepath in soundscape_to_group_indices]
+        self.soundscape_weights = np.asarray(soundscape_weights, dtype=np.float64)
+        self.soundscape_probabilities = self.soundscape_weights / self.soundscape_weights.sum()
         self.target_len = int(config.sample_rate * config.train_duration_sec)
 
     def __len__(self) -> int:
         return len(self.groups)
 
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
+    def _build_item(self, idx: int) -> Dict[str, Any]:
         (_, window_start_sec), group = self.groups[idx]
         group = group.sort_values("start_sec")
         filepath = Path(group["filepath"].iloc[0])
         wave = load_audio(filepath, self.config.sample_rate, offset=float(window_start_sec), duration=self.config.train_duration_sec)
-        wave = crop_or_pad_wave(wave, self.target_len, mode="valid", pad_mode="repeat")
+        wave = crop_or_pad_wave(wave, self.target_len, mode="train", pad_mode="zero_random")
         if self.augment:
             wave = augment_wave(wave, self.config, strength=self.strength)
         target = np.zeros((self.config.frames_per_clip, len(CLASS_ORDER)), dtype=np.float32)
@@ -205,6 +227,15 @@ class PseudoLabeledSoundscapeDataset(Dataset):
             "filename": str(group["filename"].iloc[0]),
         }
 
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        return self._build_item(idx)
+
+    def sample_weighted(self) -> Dict[str, Any]:
+        soundscape_index = int(np.random.choice(len(self.soundscape_group_indices), p=self.soundscape_probabilities))
+        group_indices = self.soundscape_group_indices[soundscape_index]
+        group_index = int(group_indices[np.random.randint(0, len(group_indices))])
+        return self._build_item(group_index)
+
 
 class MixedNoisyStudentDataset(Dataset):
     def __init__(self, focal_ds: Dataset, pseudo_ds: Dataset, config: TrainingConfig):
@@ -217,10 +248,13 @@ class MixedNoisyStudentDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
         focal = self.focal_ds[idx % len(self.focal_ds)]
-        pseudo = self.pseudo_ds[np.random.randint(0, len(self.pseudo_ds))]
+        if hasattr(self.pseudo_ds, "sample_weighted"):
+            pseudo = self.pseudo_ds.sample_weighted()
+        else:
+            pseudo = self.pseudo_ds[np.random.randint(0, len(self.pseudo_ds))]
         if self.config.mixup_focal_pseudo:
             wave, target, lam = mixup_focal_pseudo(
-                focal["wave"], focal["target"], pseudo["wave"], pseudo["target"], self.config.mixup_alpha
+                focal["wave"], focal["target"], pseudo["wave"], pseudo["target"], self.config.pseudo_mixup_lambda
             )
             return {"wave": wave, "target": target, "source": f"mixup:{lam:.3f}", "filename": focal["filename"]}
         return focal if np.random.rand() < 0.5 else pseudo
@@ -233,6 +267,3 @@ def collate_batch(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         "source": [item.get("source", "") for item in batch],
         "filename": [item.get("filename", "") for item in batch],
     }
-
-
-

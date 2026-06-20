@@ -197,8 +197,16 @@ class BirdCLEFTrainingPipeline:
             mode="train",
             augment=True,
             strength=self.config.student_aug_strength if student else self.config.teacher_aug_strength,
+            padding_mode="zero_random" if student else "zero_left",
         )
-        valid_ds = LabeledFocalDataset(valid_part, self.config, mode="valid", augment=False, strength="none")
+        valid_ds = LabeledFocalDataset(
+            valid_part,
+            self.config,
+            mode="valid",
+            augment=False,
+            strength="none",
+            padding_mode="zero_center",
+        )
         if pseudo_path is not None:
             pseudo_ds = PseudoLabeledSoundscapeDataset(pseudo_path, self.config, augment=True, strength=self.config.student_aug_strength)
             train_ds = MixedNoisyStudentDataset(focal_train, pseudo_ds, self.config)
@@ -220,7 +228,8 @@ class BirdCLEFTrainingPipeline:
     ) -> Path:
         log(f"Stage {stage_name}: preparing model and loaders")
         log(f"Stage {stage_name}: stage_dir={stage_dir}, resume_stage_dir={resume_stage_dir}, target_epochs={epochs}, student={student}")
-        model, model_config = build_model(self.config)
+        drop_path_rate = self.config.student_drop_path_rate if student else 0.0
+        model, model_config = build_model(self.config, drop_path_rate=drop_path_rate)
         resume_last = find_latest_training_checkpoint(resume_stage_dir)
         current_last = find_latest_training_checkpoint(stage_dir)
         if init_checkpoint is not None and not (
@@ -325,5 +334,3 @@ class BirdCLEFTrainingPipeline:
         self.plotter.render_all(self.train_df_raw)
         log(f"Pipeline finished. final_checkpoint={current_ckpt}, output_dir={self.output_dir}")
         return {"final_checkpoint": str(current_ckpt), "pseudo_paths": pseudo_paths, "output_dir": str(self.output_dir)}
-
-

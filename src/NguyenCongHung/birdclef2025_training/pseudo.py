@@ -98,6 +98,16 @@ class PseudoLabeler:
                 log(f"Pseudo-labeler: batch {step}/{total_batches}, rows={len(rows)}, mean_max_conf={mean_conf:.5f}")
 
         pseudo_df = pd.DataFrame(rows)
+        soundscape_weights = {}
+        if len(pseudo_df):
+            soundscape_weights = (
+                pseudo_df.groupby("filepath", sort=False)[CLASS_ORDER]
+                .max()
+                .sum(axis=1)
+                .astype(float)
+                .to_dict()
+            )
+            pseudo_df["soundscape_weight"] = pseudo_df["filepath"].map(soundscape_weights).astype(float)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             if output_path.suffix != ".parquet":
@@ -115,6 +125,9 @@ class PseudoLabeler:
             "max_confidence": float(np.max(max_confidences)) if max_confidences else 0.0,
             "pseudo_threshold": self.config.pseudo_threshold,
             "pseudo_power": self.config.pseudo_power,
+            "soundscape_weight_min": float(min(soundscape_weights.values())) if soundscape_weights else 0.0,
+            "soundscape_weight_mean": float(np.mean(list(soundscape_weights.values()))) if soundscape_weights else 0.0,
+            "soundscape_weight_max": float(max(soundscape_weights.values())) if soundscape_weights else 0.0,
             "top_predicted_classes": {},
             "mean_confidence_per_class": {},
         }
@@ -128,5 +141,3 @@ class PseudoLabeler:
         write_json(output_path.with_suffix(".stats.json"), stats)
         log(f"Saved pseudo labels: {output_path} rows={len(pseudo_df)}")
         return output_path
-
-

@@ -154,7 +154,12 @@ class StageTrainer:
         return float(df["valid_loss"].min())
 
     def _start_epoch(self, total_epochs: int) -> int:
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=max(1, total_epochs))
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            self.optimizer,
+            T_0=max(1, self.config.restart_epochs),
+            T_mult=1,
+            eta_min=self.config.min_learning_rate,
+        )
         resume_last = self._existing_last_path()
         if self.config.auto_resume and not self.config.force_retrain and resume_last is not None:
             # Do not load scheduler state here: Kaggle continuation often increases total epochs.
@@ -262,7 +267,8 @@ class StageTrainer:
             log(f"{self.stage_name}: epoch {epoch}/{total_epochs} started")
             train_metrics = self.train_one_epoch(train_loader, epoch)
             valid_metrics = self.validate_one_epoch(valid_loader)
-            self.scheduler.step()
+            # Absolute epoch keeps the five-epoch restart phase correct after Kaggle resume.
+            self.scheduler.step(epoch)
             row = {
                 "stage": self.stage_name,
                 "epoch": epoch,
@@ -299,5 +305,3 @@ class StageTrainer:
             return self.best_inference_path
         log(f"{self.stage_name}: finished; returning {self.last_path}")
         return self.last_path
-
-

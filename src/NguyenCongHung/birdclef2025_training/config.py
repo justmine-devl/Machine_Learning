@@ -66,6 +66,8 @@ class TrainingConfig:
     num_noisy_student_iterations: int = 2
     learning_rate: float = 3e-4  # ASSUMPTION: not publicly available; tune this
     head_learning_rate: float = 1e-3  # ASSUMPTION: not publicly available; tune this
+    min_learning_rate: float = 1e-6
+    restart_epochs: int = 5
     weight_decay: float = 1e-4  # ASSUMPTION: not publicly available; tune this
     gradient_clip_norm: float = 1.0  # ASSUMPTION: not publicly available; tune this
     mixed_precision: bool = True
@@ -80,7 +82,7 @@ class TrainingConfig:
     val_threshold: float = 0.5  # ASSUMPTION: not publicly available; tune this
 
     # Loss
-    loss_type: str = "focal_bce"
+    loss_type: str = "cross_entropy"
     focal_gamma: float = 2.0  # ASSUMPTION: not publicly available; tune this
     focal_alpha: Optional[float] = None  # ASSUMPTION: not publicly available; tune this
     label_smoothing: float = 0.0
@@ -95,7 +97,8 @@ class TrainingConfig:
     teacher_aug_strength: str = "moderate"
     student_aug_strength: str = "strong"
     mixup_focal_pseudo: bool = True
-    mixup_alpha: float = 0.4  # ASSUMPTION: not publicly available; tune this
+    pseudo_mixup_lambda: float = 0.5
+    student_drop_path_rate: float = 0.15
 
     # Pseudo-labeling
     pseudo_threshold: float = 0.0
@@ -228,6 +231,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--num-noisy-student-iterations", type=int, default=2)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--head-learning-rate", type=float, default=1e-3)
+    parser.add_argument("--min-learning-rate", type=float, default=1e-6)
+    parser.add_argument("--restart-epochs", type=int, default=5)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--gradient-clip-norm", type=float, default=1.0)
     parser.add_argument("--mixed-precision", action=argparse.BooleanOptionalAction, default=True)
@@ -254,7 +259,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-folds", type=int, default=5)
     parser.add_argument("--fold", type=int, default=0)
     parser.add_argument("--val-threshold", type=float, default=0.5)
-    parser.add_argument("--loss-type", choices=["bce", "focal_bce"], default="focal_bce")
+    parser.add_argument("--loss-type", choices=["cross_entropy", "bce", "focal_bce"], default="cross_entropy")
     parser.add_argument("--label-smoothing", type=float, default=0.0)
     parser.add_argument("--use-pos-weight", action=argparse.BooleanOptionalAction, default=False)
 
@@ -264,7 +269,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--soundscape-stride-sec", type=int, default=5)
 
     parser.add_argument("--mixup-focal-pseudo", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--mixup-alpha", type=float, default=0.4)
+    parser.add_argument("--pseudo-mixup-lambda", type=float, default=0.5)
+    parser.add_argument("--student-drop-path-rate", type=float, default=0.15)
     parser.add_argument("--pseudo-threshold", type=float, default=0.0)
     parser.add_argument("--pseudo-top-k", type=int, default=None)
     parser.add_argument("--pseudo-power", type=float, default=1.0)
@@ -278,6 +284,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def config_from_args(args: argparse.Namespace) -> TrainingConfig:
     values = vars(args).copy()
-    return TrainingConfig(**values)
-
-
+    config = TrainingConfig(**values)
+    if config.restart_epochs < 1:
+        raise ValueError("--restart-epochs must be at least 1")
+    if not 0.0 <= config.pseudo_mixup_lambda <= 1.0:
+        raise ValueError("--pseudo-mixup-lambda must be in [0, 1]")
+    if not 0.0 <= config.student_drop_path_rate < 1.0:
+        raise ValueError("--student-drop-path-rate must be in [0, 1)")
+    return config

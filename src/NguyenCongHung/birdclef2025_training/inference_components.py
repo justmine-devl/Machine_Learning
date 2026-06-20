@@ -136,6 +136,7 @@ class CLEFClassifierSED(nn.Module):
                 backbone_name,
                 pretrained=backbone_config.get("pretrained", False),
                 features_only=True,
+                drop_path_rate=backbone_config.get("drop_path_rate", 0.0),
             )
         except Exception:
             if backbone_name.startswith("timm/"):
@@ -143,6 +144,7 @@ class CLEFClassifierSED(nn.Module):
                     backbone_name.replace("timm/", "", 1),
                     pretrained=backbone_config.get("pretrained", False),
                     features_only=True,
+                    drop_path_rate=backbone_config.get("drop_path_rate", 0.0),
                 )
             else:
                 raise
@@ -280,6 +282,3 @@ MODEL_CONFIGS = {
     for name in dir(ModelsGroupConfig)
     if name.startswith("model_config_")
 }
-
-
-

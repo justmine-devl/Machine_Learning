@@ -12,11 +12,12 @@ from .config import TrainingConfig
 from .inference_components import CLEFClassifierSED, MODEL_CONFIGS
 
 
-def build_model(config: TrainingConfig) -> Tuple[nn.Module, Dict]:
+def build_model(config: TrainingConfig, drop_path_rate: float = 0.0) -> Tuple[nn.Module, Dict]:
     if config.model_key not in MODEL_CONFIGS:
         raise KeyError(f"Unknown model_key={config.model_key}. Available: {sorted(MODEL_CONFIGS)}")
     model_config = copy.deepcopy(MODEL_CONFIGS[config.model_key])
     model_config["backbone"]["pretrained"] = config.pretrained_backbone
+    model_config["backbone"]["drop_path_rate"] = float(drop_path_rate)
     if model_config["head"]["num_classes"] != len(CLASS_ORDER):
         raise ValueError(f"{config.model_key} outputs {model_config['head']['num_classes']} classes, expected {len(CLASS_ORDER)}.")
     return CLEFClassifierSED(config=model_config), model_config
@@ -66,6 +67,3 @@ def make_optimizer(model: nn.Module, config: TrainingConfig) -> torch.optim.Opti
         ],
         weight_decay=config.weight_decay,
     )
-
-
-
