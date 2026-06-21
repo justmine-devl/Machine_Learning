@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -128,7 +129,7 @@ def main() -> None:
                     include_secondary=bool(data_cfg.get("include_secondary", True)),
                 )
             )
-        pos_weight = compute_pos_weight(torch.tensor(target_rows, dtype=torch.float32)).to(device)
+        pos_weight = compute_pos_weight(torch.from_numpy(np.stack(target_rows))).to(device)
 
     loss_fn = make_loss_fn(
         train_cfg.get("loss", "weighted_focal_bce"),

@@ -45,7 +45,7 @@ def main() -> None:
     spec_cfg = cfg.get("spectrogram", {})
     audio_cfg = cfg.get("audio", {})
 
-    audio_dir = Path(args.audio_dir or data_cfg.get("unlabeled_audio_dir", "data/unlabeled_audio"))
+    audio_dir = Path(args.audio_dir or data_cfg.get("unlabeled_audio_dir", "data/unlabeled_soundscapes"))
     classes_path = Path(args.classes or data_cfg.get("classes_path", "outputs/processed/classes.txt"))
     out_path = Path(args.out or pseudo_cfg.get("output_path", "outputs/pseudo/pseudo_labels.csv"))
     classes = [line.strip() for line in classes_path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -85,9 +85,8 @@ def main() -> None:
                 preds.append(torch.sigmoid(logits).cpu().numpy())
             probs = np.concatenate(preds, axis=0)
             all_preds.append(probs)
-            stem = path.stem
             for i in range(len(probs)):
-                row_ids.append(f"{stem}_{int((i + 1) * duration)}")
+                row_ids.append(f"{path.resolve().as_posix()}::{i:03d}")
                 audio_paths.append(str(path.resolve()))
                 chunk_indices.append(i)
 

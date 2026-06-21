@@ -57,7 +57,7 @@ class UnlabeledWindowDataset(Dataset):
             wav = load_audio(audio_path, sample_rate=sample_rate)
             windows = make_regular_windows(wav, sample_rate=sample_rate, duration=duration, drop_last=False)
             for i, window in enumerate(windows):
-                self.items.append((str(audio_path), i, window))
+                self.items.append((str(audio_path.resolve()), i, window))
 
     def __len__(self):
         return len(self.items)
@@ -65,7 +65,7 @@ class UnlabeledWindowDataset(Dataset):
     def __getitem__(self, idx):
         audio_path, chunk_id, window = self.items[idx]
         spec = log_mel_spectrogram(window, sample_rate=self.sample_rate, **self.spectrogram_kwargs)
-        row_id = f'{Path(audio_path).stem}_{chunk_id:03d}'
+        row_id = f'{Path(audio_path).as_posix()}::{chunk_id:03d}'
         return torch.from_numpy(spec), row_id, audio_path, chunk_id
 
 

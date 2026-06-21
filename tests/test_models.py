@@ -21,3 +21,17 @@ def test_build_model_requires_timm_if_missing():
     x = torch.randn(2, 1, 64, 64)
     out = model(x)
     assert out['clip_logits'].shape == (2, 5)
+
+
+def test_baseline_supports_backbones_with_internal_head_features():
+    pytest.importorskip("timm")
+    from bioacoustic.models import build_model
+
+    model = build_model(
+        "baseline",
+        num_classes=3,
+        backbone="mobilenetv3_small_050",
+        pretrained=False,
+    )
+    out = model(torch.randn(2, 1, 64, 64))
+    assert out["clip_logits"].shape == (2, 3)

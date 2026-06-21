@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
@@ -106,7 +107,7 @@ def main() -> None:
         )
         for _, row in train_df.iterrows()
     ]
-    pos_weight = compute_pos_weight(torch.tensor(target_rows, dtype=torch.float32)).to(device) if train_cfg.get("use_pos_weight", True) else None
+    pos_weight = compute_pos_weight(torch.from_numpy(np.stack(target_rows))).to(device) if train_cfg.get("use_pos_weight", True) else None
 
     loss_name = train_cfg.get("loss", "weighted_focal_bce").lower()
     if loss_name in {"weighted_bce", "wbce"}:

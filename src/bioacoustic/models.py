@@ -55,15 +55,13 @@ class EfficientNetClassifier(nn.Module):
             backbone,
             pretrained=pretrained,
             in_chans=in_channels,
-            num_classes=0,
+            num_classes=num_classes,
             global_pool="avg",
+            drop_rate=dropout,
         )
-        features = self.backbone.num_features
-        self.head = nn.Sequential(nn.Dropout(dropout), nn.Linear(features, num_classes))
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        features = self.backbone(x)
-        logits = self.head(features)
+        logits = self.backbone(x)
         return {"clip_logits": logits}
 
 

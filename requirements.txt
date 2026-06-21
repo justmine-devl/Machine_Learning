@@ -1,13 +1,23 @@
+# Numerical computing and metadata
 numpy>=1.24
 pandas>=2.0
 scikit-learn>=1.3
 PyYAML>=6.0
+
+# Audio and spectrogram processing
 librosa>=0.10
 soundfile>=0.12
+
+# Deep learning models
 torch>=2.0
-torchaudio>=2.0
 timm>=0.9
+
+# Analysis, progress, and report figures
 matplotlib>=3.7
 tqdm>=4.65
 
-# Optional deployment backend: pip install openvino
+# Ensemble deployment runtime
+openvino>=2024.0
+
+# Test runner
+pytest>=7.4
