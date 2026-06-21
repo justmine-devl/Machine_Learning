@@ -1,8 +1,0 @@
-Item,Value,Note
-Total audio samples,28564,Training metadata samples used in the project report
-Approximate duration (hours),280.5,Total duration after metadata-level aggregation
-Target classes,206,Multi-label species classes
-Window length,5 seconds,Used for training and inference chunks
-Sample rate,32000 Hz,Audio is resampled before spectrogram generation
-Input representation,Log-mel spectrogram,"192 mel bins, log-scaled and normalized"
-Cross-validation,5 folds,Fold-level evaluation for component and ensemble results

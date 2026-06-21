@@ -43,6 +43,7 @@ def main() -> None:
     model_cfg = cfg.get("model", {})
     pseudo_cfg = cfg.get("pseudo_labeling", {})
     spec_cfg = cfg.get("spectrogram", {})
+    audio_cfg = cfg.get("audio", {})
 
     audio_dir = Path(args.audio_dir or data_cfg.get("unlabeled_audio_dir", "data/unlabeled_audio"))
     classes_path = Path(args.classes or data_cfg.get("classes_path", "outputs/processed/classes.txt"))
@@ -67,9 +68,9 @@ def main() -> None:
     if not files:
         raise FileNotFoundError(f"No audio files found in {audio_dir}")
 
-    all_preds, row_ids = [], []
-    sample_rate = int(cfg.get("sample_rate", 32000))
-    duration = float(cfg.get("clip_duration", 5.0))
+    all_preds, row_ids, audio_paths, chunk_indices = [], [], [], []
+    sample_rate = int(audio_cfg.get("sample_rate", 32000))
+    duration = float(audio_cfg.get("clip_duration", 5.0))
     batch_size = int(pseudo_cfg.get("batch_size", 32))
 
     with torch.no_grad():
@@ -87,6 +88,8 @@ def main() -> None:
             stem = path.stem
             for i in range(len(probs)):
                 row_ids.append(f"{stem}_{int((i + 1) * duration)}")
+                audio_paths.append(str(path.resolve()))
+                chunk_indices.append(i)
 
     predictions = np.concatenate(all_preds, axis=0)
     pseudo_df = select_pseudo_labels(
@@ -98,6 +101,12 @@ def main() -> None:
     # Rename class columns for readability.
     rename = {i: cls for i, cls in enumerate(classes)}
     pseudo_df = pseudo_df.rename(columns=rename)
+    window_index = pd.DataFrame({
+        "row_id": row_ids,
+        "audio_path": audio_paths,
+        "chunk_index": chunk_indices,
+    })
+    pseudo_df = window_index.merge(pseudo_df, on="row_id", how="inner", validate="one_to_one")
     save_pseudo_labels(pseudo_df, out_path)
     print(f"Saved pseudo labels: {out_path}")
     print(f"Selected {len(pseudo_df):,} / {len(predictions):,} chunks")

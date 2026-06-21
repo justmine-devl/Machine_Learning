@@ -1,18 +1,24 @@
 # Data placement
 
-The BirdCLEF dataset is not redistributed in this repository. Configure paths in `config.yaml` and use this local layout:
+The BirdCLEF dataset is not redistributed here. The default root configuration expects:
 
 ```text
 data/
-├── metadata.csv
-├── classes.txt
-├── audio/
-│   ├── species_id/recording.ogg   # class folders are supported
-│   └── recording.ogg              # a flat directory is also supported
-├── unlabeled_audio/
-└── sample/                        # only tiny, license-compatible examples
+|-- train_metadata.csv
+|-- train_audio/
+|   |-- <primary_label>/<filename>.ogg
+|   `-- <filename>.ogg              # flat layout is also supported
+|-- unlabeled_soundscapes/
+|-- test_soundscapes/
+`-- sample/                         # tiny redistributable examples only
 ```
 
-Required metadata columns are `primary_label` plus `filename` or `filepath`. `secondary_labels` is optional. `scripts/prepare_data.py` creates recording-level train/validation CSVs and a sorted class list under `data/processed/`.
+Required metadata columns are `filename` and `primary_label`. `secondary_labels` is optional and may contain a stringified Python list. Run:
 
-Raw audio, generated arrays, and processed datasets are ignored by Git. Verify the source dataset's license before adding any sample.
+```bash
+python scripts/prepare_data.py --config config.yaml
+```
+
+This writes `metadata_with_folds.csv`, `classes.txt`, and `dataset_summary.csv` to `outputs/processed/` by default. Experiment YAML files may use different paths; their `data` sections are authoritative.
+
+Raw audio and generated datasets are ignored by Git.

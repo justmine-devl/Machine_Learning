@@ -119,13 +119,15 @@ def main() -> None:
     )
     loader = DataLoader(ds, batch_size=int(cfg.get('training', {}).get('valid_batch_size', 32)), shuffle=False, num_workers=int(cfg.get('training', {}).get('num_workers', 2)))
 
-    all_probs, row_ids = [], []
+    all_probs, row_ids, audio_paths, chunk_indices = [], [], [], []
     with torch.no_grad():
-        for x, ids, _, _ in loader:
+        for x, ids, paths, chunks in loader:
             x = x.to(device).float()
             logits = model(x)['clip_logits']
             all_probs.append(torch.sigmoid(logits).cpu().numpy())
             row_ids.extend(list(ids))
+            audio_paths.extend(list(paths))
+            chunk_indices.extend(int(chunk) for chunk in chunks)
     probs = np.concatenate(all_probs, axis=0)
     pseudo_df = select_pseudo_labels(
         probs,
@@ -134,6 +136,12 @@ def main() -> None:
         class_prob_threshold=float(pseudo_cfg.get('class_prob_threshold', 0.10)),
     )
     pseudo_df.columns = ['row_id'] + classes
+    window_index = pd.DataFrame({
+        'row_id': row_ids,
+        'audio_path': audio_paths,
+        'chunk_index': chunk_indices,
+    })
+    pseudo_df = window_index.merge(pseudo_df, on='row_id', how='inner', validate='one_to_one')
     out_path = data.get('pseudo_labels_path', 'outputs/pseudo_labeling/pseudo_labels.csv')
     save_pseudo_labels(pseudo_df, out_path)
     print(f'Saved {len(pseudo_df)} selected pseudo-labeled chunks to {out_path}')

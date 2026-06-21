@@ -1,6 +1,0 @@
-Experiment,AUC,mAP,Precision,Recall,F1-score,Interpretation
-Baseline EfficientNet-B0,0.918,0.512,0.668,0.472,0.553,Initial spectrogram classifier baseline
-SED + attention pooling,0.94,0.568,0.704,0.525,0.602,Improves temporal localization for short vocal events
-SED + pseudo-labeling,0.946,0.594,0.716,0.548,0.621,Adds unlabeled soundscape supervision
-Teacher-student distillation,0.951,0.612,0.731,0.569,0.64,Uses soft targets to improve calibration and generalization
-Full ensemble + post-processing,0.956,0.632,0.748,0.586,0.657,"Combines checkpoints, shifted windows, and temporal smoothing"

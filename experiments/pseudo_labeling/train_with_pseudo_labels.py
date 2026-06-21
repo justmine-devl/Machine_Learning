@@ -30,10 +30,11 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader, WeightedRandomSampler
 
 from bioacoustic.dataset import (
     BirdAudioDataset,
+    PseudoLabelAudioDataset,
     add_stratified_folds,
     build_class_list,
     encode_multihot,
@@ -110,6 +111,32 @@ def make_loaders(cfg: Dict[str, Any], df: pd.DataFrame, classes: List[str], fold
         include_secondary=bool(data.get('include_secondary', True)),
         spectrogram_kwargs=spec_kwargs,
     )
+    pseudo_path = data.get('pseudo_labels_path')
+    sampler = None
+    if pseudo_path and Path(pseudo_path).exists():
+        pseudo_df = pd.read_csv(pseudo_path)
+        pseudo_ds = PseudoLabelAudioDataset(
+            pseudo_df,
+            classes=classes,
+            sample_rate=int(audio_cfg.get('sample_rate', 32000)),
+            duration=float(audio_cfg.get('clip_duration', 5.0)),
+            spectrogram_kwargs=spec_kwargs,
+        )
+        if len(pseudo_ds):
+            labeled_ratio = float(cfg.get('pseudo_labeling', {}).get('labeled_ratio', 0.6))
+            if not 0.0 < labeled_ratio < 1.0:
+                raise ValueError('pseudo_labeling.labeled_ratio must be between 0 and 1')
+            combined = ConcatDataset([train_ds, pseudo_ds])
+            weights = np.concatenate([
+                np.full(len(train_ds), labeled_ratio / max(len(train_ds), 1)),
+                np.full(len(pseudo_ds), (1.0 - labeled_ratio) / len(pseudo_ds)),
+            ])
+            sampler = WeightedRandomSampler(
+                torch.as_tensor(weights, dtype=torch.double),
+                num_samples=max(len(train_ds), int(np.ceil(len(train_ds) / labeled_ratio))),
+                replacement=True,
+            )
+            train_ds = combined
     valid_ds = BirdAudioDataset(
         valid_df,
         audio_dir=data['train_audio_dir'],
@@ -126,7 +153,8 @@ def make_loaders(cfg: Dict[str, Any], df: pd.DataFrame, classes: List[str], fold
     train_loader = DataLoader(
         train_ds,
         batch_size=int(train_cfg.get('batch_size', 16)),
-        shuffle=True,
+        shuffle=sampler is None,
+        sampler=sampler,
         num_workers=int(train_cfg.get('num_workers', 2)),
         pin_memory=True,
     )
@@ -225,15 +253,14 @@ def train_supervised_experiment(cfg: Dict[str, Any], model_type: str, fold: int 
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
-    # This experiment trains the same SED architecture after pseudo-label generation.
-    # The pseudo-label CSV is preserved as experiment evidence; the clean src dataset
-    # remains focused on supervised metadata. If you want to inject pseudo rows into
-    # the loader, extend src/bioacoustic/dataset.py with a PseudoLabelDataset and keep
-    # this script unchanged at the orchestration level.
+    # The loader mixes labeled recordings and selected soft pseudo-labeled windows
+    # according to pseudo_labeling.labeled_ratio.
     pseudo_path = cfg.get('data', {}).get('pseudo_labels_path')
     if pseudo_path and not Path(pseudo_path).exists():
-        print(f'Warning: pseudo-label file not found yet: {pseudo_path}')
-        print('Run generate_pseudo_labels.py first, then rerun this script.')
+        raise FileNotFoundError(
+            f'Pseudo-label file not found: {pseudo_path}. '
+            'Run generate_pseudo_labels.py first.'
+        )
     train_supervised_experiment(cfg, model_type='sed', fold=args.fold)
 
 

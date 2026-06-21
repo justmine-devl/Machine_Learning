@@ -33,6 +33,7 @@ def main() -> None:
     data_cfg = cfg.get("data", {})
     ens_cfg = cfg.get("ensemble", {})
     spec_cfg = cfg.get("spectrogram", {})
+    audio_cfg = cfg.get("audio", {})
 
     audio_dir = Path(args.audio_dir or data_cfg.get("test_audio_dir", "data/test_audio"))
     models_dir = Path(args.models_dir)
@@ -53,8 +54,8 @@ def main() -> None:
     if not files:
         raise FileNotFoundError(f"No audio files found in {audio_dir}")
 
-    sample_rate = int(cfg.get("sample_rate", 32000))
-    duration = float(cfg.get("clip_duration", 5.0))
+    sample_rate = int(audio_cfg.get("sample_rate", 32000))
+    duration = float(audio_cfg.get("clip_duration", 5.0))
     rows = []
     for path in tqdm(files, desc="ensemble inference"):
         probs = infer_audio_file_openvino(

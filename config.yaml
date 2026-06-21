@@ -1,21 +1,25 @@
 seed: 42
+output_dir: outputs/default
 
-paths:
-  metadata: data/metadata.csv
-  audio_dir: data/audio
-  class_list: data/classes.txt
-  unlabeled_audio_dir: data/unlabeled_audio
-  weights_dir: weights
-  output_dir: experiments/results
+data:
+  metadata_path: data/train_metadata.csv
+  processed_dir: outputs/processed
+  audio_dir: data/train_audio
+  unlabeled_audio_dir: data/unlabeled_soundscapes
+  test_audio_dir: data/test_soundscapes
+  classes_path: outputs/processed/classes.txt
+  filename_col: filename
+  primary_col: primary_label
+  secondary_col: secondary_labels
+  include_secondary: true
 
 audio:
   sample_rate: 32000
   clip_duration: 5.0
-  shift_duration: 2.5
+  shift: 2.5
 
 spectrogram:
   n_fft: 2048
-  win_length: 2048
   hop_length: 768
   n_mels: 192
   f_min: 50
@@ -23,35 +27,46 @@ spectrogram:
   normalize: true
 
 model:
+  type: sed
   num_classes: 206
-  backbone: tf_efficientnetv2_s.in21k
+  backbone: tf_efficientnetv2_s_in21ft1k
+  in_channels: 1
   pretrained: true
   dropout: 0.2
 
 training:
+  fold: 0
+  n_splits: 5
   batch_size: 16
+  valid_batch_size: 32
   epochs: 10
   learning_rate: 0.0005
   weight_decay: 0.00001
-  validation_size: 0.2
+  num_workers: 2
+  use_cuda: true
+  use_pos_weight: true
   loss: weighted_focal_bce
   focal_gamma: 2.0
   label_smoothing: 0.005
-  hard_loss_weight: 0.6
-  num_workers: 0
+
+distillation:
+  hard_weight: 0.6
 
 pseudo_labeling:
-  positive_threshold: 0.80
-  negative_threshold: 0.05
-  preserve_soft_labels: true
+  output_path: outputs/pseudo_labeling/pseudo_labels.csv
+  min_max_prob: 0.55
+  class_prob_threshold: 0.10
+  batch_size: 32
+  labeled_ratio: 0.6
 
 ensemble:
-  regular_weight: 0.50
-  shifted_left_weight: 0.25
-  shifted_right_weight: 0.25
-  smoothing_weight: 0.10
-  probability_power: 1.0
-  aggregate_method: max
+  regular_prefix: model_
+  shifted_prefix: model2_
+  device: CPU
+  shift: 2.5
+  blend_alpha: 0.5
+  temporal_smoothing: true
+  power_gamma: 1.0
 
 evaluation:
   threshold: 0.5

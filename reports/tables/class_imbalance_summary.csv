@@ -1,8 +1,0 @@
-Statistic,Value
-Most frequent class,grekis
-Most frequent class samples,990
-Rarest class,64862
-Rarest class samples,2
-Imbalance ratio,495x
-Species with fewer than 10 samples,39
-Species with more than 500 samples,9

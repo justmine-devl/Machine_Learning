@@ -1,55 +1,49 @@
 # Bioacoustic Species Recognition
 
-Unified research code for the team's BirdCLEF 2025 bioacoustic species-recognition study. This is an academic experiment repository—not a competition submission. It preserves all five members' original work while exposing the report's common pipeline as an installable Python package and runnable scripts.
+Unified research repository for the team's BirdCLEF 2025 multi-label bioacoustic study. The current codebase covers dataset preparation, EfficientNet classification, sound event detection (SED), pseudo-labeling, Noisy Student, self-distillation, ensemble inference, evaluation, and report visualization.
 
 ```text
-audio -> 5 s regular/shifted windows -> normalized log-mel spectrogram
-      -> EfficientNet baseline or SED + attention pooling
-      -> BCE-family training / teacher-student learning
-      -> model averaging -> shifted-window blending -> temporal smoothing
-      -> macro AUC, mAP, precision, recall, and F1
+audio -> 5-second windows -> log-mel spectrogram
+      -> EfficientNet classifier or SED + attention pooling
+      -> BCE-family / teacher-student training
+      -> regular + shifted ensemble -> temporal smoothing
+      -> macro AUC, micro AUC, mAP, precision, recall, F1
 ```
 
-## Methods represented
-
-- Dataset analysis, multi-label metadata, recording-level splits, and rare-class balancing
-- 32 kHz audio loading, silence padding, 5-second crops, and 2.5-second shifted inference
-- 192-bin log-mel spectrograms (`n_fft=2048`, `hop_length=768`, 50–15,000 Hz)
-- EfficientNet-family clip baseline and SED model with class-wise temporal attention
-- BCE, weighted BCE, focal BCE, weighted focal BCE, soft-label BCE, and student loss
-- Pseudo-label confidence filtering, Noisy Student, and self-distillation utilities
-- Checkpoint prediction averaging, boundary-aware blending, temporal smoothing, and power adjustment
-
-## Repository layout
+## Structure
 
 ```text
 .
-├── config.yaml                  # paths and shared experiment hyperparameters
-├── src/bioacoustic/             # reusable implementation
-├── scripts/                     # data, training, pseudo-label, evaluation, inference CLIs
-├── notebooks/                   # lightweight report demonstrations importing src/
-├── experiments/                 # method notes and experiment-specific artifacts
-├── reports/                     # report mapping, figures, tables, and audit
-├── data/                        # local dataset placement (large files ignored)
-├── weights/                     # local checkpoints (ignored)
-├── legacy/                      # untouched original work from all five members
-└── tests/                       # lightweight unit tests
+|-- config.yaml                 # default configuration for scripts/
+|-- src/bioacoustic/            # reusable library code
+|-- scripts/                    # general command-line entry points
+|-- experiments/                # method-specific configs and runnable experiments
+|   |-- baseline/
+|   |-- sed/
+|   |-- pseudo_labeling/
+|   |-- noisy_student/
+|   |-- self_distillation/
+|   |-- ensemble/
+|   `-- analysis/
+|-- notebooks/                  # visualization and demonstration notebooks
+|-- reports/                    # figures, tables, and code-to-report mapping
+|-- tests/                      # lightweight unit and integration tests
+|-- data/                       # local dataset layout; large files are ignored
+`-- weights/                    # local checkpoints; ignored by Git
 ```
 
-The separately requested `legacy_original_snapshot/` is a local, Git-ignored safety copy of the five folders as they existed before the refactor. The canonical preserved originals are tracked under `legacy/`.
+The pre-refactor five-member folders are retained locally in the Git-ignored `legacy_original_snapshot/` safety copy.
 
 ## Installation
 
-Python 3.10 or later is recommended.
-
 ```bash
 python -m venv .venv
-.venv/Scripts/activate              # Windows PowerShell
+.venv/Scripts/activate
 python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-OpenVINO is optional and only needed to revisit the original deployment workflow:
+Install OpenVINO only when running its inference path:
 
 ```bash
 python -m pip install -e ".[openvino]"
@@ -57,44 +51,68 @@ python -m pip install -e ".[openvino]"
 
 ## Data preparation
 
-Place `train.csv` and audio as described in [data/README.md](data/README.md), update `config.yaml`, then run:
+Follow [data/README.md](data/README.md), adjust `config.yaml`, then create folds and the class list:
 
 ```bash
-python scripts/prepare_data.py --metadata data/metadata.csv
+python scripts/prepare_data.py --config config.yaml
 ```
 
-The metadata needs `filename` (or `filepath`) and `primary_label`; `secondary_labels` is optional and accepts a stringified list.
-
-## Training
+## General scripts
 
 ```bash
-python scripts/train_baseline.py --config config.yaml
-python scripts/train_sed.py --config config.yaml
-python scripts/train_student.py --spectrograms data/processed/specs.npy \
-  --hard-targets data/processed/hard.npy --soft-targets data/processed/soft.npy
+python scripts/train_baseline.py --config config.yaml --out-dir outputs/baseline
+python scripts/train_sed.py --config config.yaml --out-dir outputs/sed
+
+python scripts/generate_pseudo_labels.py --config config.yaml \
+  --checkpoint outputs/sed/best.pt
+
+python scripts/train_student.py --config config.yaml \
+  --soft-targets outputs/self_distillation/teacher_soft_targets.npy \
+  --out-dir outputs/student
+
+python scripts/evaluate.py --pred outputs/predictions.npy \
+  --target outputs/targets.npy --classes outputs/processed/classes.txt \
+  --search-threshold
+
+python scripts/infer_ensemble.py --config config.yaml \
+  --models-dir weights/openvino --audio-dir data/test_soundscapes
 ```
 
-Set `model.pretrained: false` for offline smoke tests. Large checkpoints and outputs are ignored by Git.
+## Reproducible experiments
 
-## Pseudo-labeling, evaluation, and ensemble inference
+Unlike `scripts/`, each experiment owns a concrete configuration and output directory:
 
 ```bash
-python scripts/generate_pseudo_labels.py --checkpoint weights/teacher.pt \
-  --audio-dir data/unlabeled_audio --out experiments/pseudo_labeling/soft_labels.csv
+python experiments/baseline/train_baseline.py \
+  --config experiments/baseline/config_baseline.yaml
 
-python scripts/evaluate.py --targets y_true.npy --predictions y_pred.npy --search-threshold
+python experiments/sed/train_sed.py \
+  --config experiments/sed/config_sed.yaml
 
-python scripts/infer_ensemble.py fold0.npy fold1.npy fold2.npy \
-  --out experiments/ensemble/predictions.npy
+python experiments/pseudo_labeling/generate_pseudo_labels.py \
+  --config experiments/pseudo_labeling/config_pseudo.yaml
+python experiments/pseudo_labeling/train_with_pseudo_labels.py \
+  --config experiments/pseudo_labeling/config_pseudo.yaml
+
+python experiments/noisy_student/train_noisy_student.py \
+  --config experiments/noisy_student/config_noisy_student.yaml
+
+python experiments/self_distillation/train_self_distillation.py \
+  --config experiments/self_distillation/config_self_distillation.yaml
+
+python experiments/ensemble/infer_ensemble.py \
+  --config experiments/ensemble/config_ensemble.yaml
+python experiments/ensemble/evaluate_ensemble.py \
+  --config experiments/ensemble/config_ensemble.yaml
 ```
 
-The ensemble CLI consumes model-output matrices, whether produced by PyTorch or the preserved OpenVINO workflow. It deliberately keeps model execution separate from post-processing so results are reproducible and easy to audit.
+See [experiments/README.md](experiments/README.md) for inputs, outputs, and the distinction between each method. Generated datasets, checkpoints, predictions, and logs live under `outputs/` and are not committed.
 
-## Reproducibility and report support
+## Report support
 
-- All shared hyperparameters and paths live in `config.yaml`; no unified module contains a Kaggle or local-machine path.
-- [reports/experiment_notes.md](reports/experiment_notes.md) maps report sections to code and notebooks.
-- [legacy/README.md](legacy/README.md) maps each member's originals to the unified implementation.
-- [reports/repository_audit.md](reports/repository_audit.md) records overlaps, hard-coded paths, dependencies, and preserved artifacts found during migration.
+- [reports/docs/code_report_mapping.md](reports/docs/code_report_mapping.md) maps report sections to current code and experiment runners.
+- `reports/tables/` contains small report-ready CSV summaries.
+- `reports/figures/` contains generated plots and pipeline diagrams.
+- `scripts/make_report_plots.py` and `experiments/analysis/` regenerate analysis artifacts.
 
-Datasets, audio, model weights, predictions, caches, Kaggle outputs, and experiment logs are intentionally not committed. Keep only small, explicitly documented demonstration files in `data/sample/`.
+Reported CSV values are research records, not automatically reproduced metrics. Exact reproduction still requires the original dataset, fold metadata, and model checkpoints.

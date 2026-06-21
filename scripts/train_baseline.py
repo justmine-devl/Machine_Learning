@@ -58,6 +58,7 @@ def main() -> None:
     model_cfg = cfg.get("model", {})
     train_cfg = cfg.get("training", {})
     spec_cfg = cfg.get("spectrogram", {})
+    audio_cfg = cfg.get("audio", {})
 
     metadata_path = Path(args.metadata or data_cfg.get("metadata_path", "outputs/processed/metadata_with_folds.csv"))
     audio_dir = Path(args.audio_dir or data_cfg.get("audio_dir", "data/train_audio"))
@@ -81,8 +82,8 @@ def main() -> None:
         filename_col=filename_col,
         primary_col=primary_col,
         secondary_col=data_cfg.get("secondary_col", "secondary_labels"),
-        sample_rate=int(cfg.get("sample_rate", 32000)),
-        duration=float(cfg.get("clip_duration", 5.0)),
+        sample_rate=int(audio_cfg.get("sample_rate", 32000)),
+        duration=float(audio_cfg.get("clip_duration", 5.0)),
         include_secondary=bool(data_cfg.get("include_secondary", True)),
         spectrogram_kwargs=spec_cfg,
     )

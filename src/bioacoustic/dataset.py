@@ -150,3 +150,50 @@ class BirdAudioDataset(Dataset):
             include_secondary=self.include_secondary,
         )
         return torch.from_numpy(spec), torch.from_numpy(target)
+
+
+class PseudoLabelAudioDataset(Dataset):
+    """Load fixed soundscape windows with soft pseudo-label targets.
+
+    The pseudo-label table must contain ``audio_path`` and ``chunk_index``
+    columns plus one probability column for every class. This keeps the
+    generated teacher output traceable to the exact audio window used during
+    student training.
+    """
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        classes: Sequence[str],
+        sample_rate: int = 32000,
+        duration: float = 5.0,
+        spectrogram_kwargs: Optional[dict] = None,
+    ) -> None:
+        if torch is None:
+            raise ImportError("PyTorch is required for PseudoLabelAudioDataset.")
+        required = {"audio_path", "chunk_index", *classes}
+        missing = sorted(required.difference(df.columns))
+        if missing:
+            raise ValueError(f"Pseudo-label table is missing columns: {missing}")
+        self.df = df.reset_index(drop=True)
+        self.classes = list(classes)
+        self.sample_rate = sample_rate
+        self.duration = duration
+        self.target_length = int(sample_rate * duration)
+        self.spectrogram_kwargs = spectrogram_kwargs or {}
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx: int):
+        row = self.df.iloc[idx]
+        waveform = load_audio(Path(str(row["audio_path"])), sample_rate=self.sample_rate)
+        start = int(row["chunk_index"]) * self.target_length
+        window = pad_or_trim(waveform[start:], self.target_length, random_crop=False)
+        spec = log_mel_spectrogram(
+            window,
+            sample_rate=self.sample_rate,
+            **self.spectrogram_kwargs,
+        )
+        target = row[self.classes].to_numpy(dtype=np.float32)
+        return torch.from_numpy(spec), torch.from_numpy(target)

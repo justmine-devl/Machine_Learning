@@ -40,5 +40,5 @@ wandb/
 mlruns/
 experiments/results/
 
-# Local safety snapshot; canonical originals are tracked under legacy/
+# Local pre-refactor safety snapshot
 legacy_original_snapshot/
