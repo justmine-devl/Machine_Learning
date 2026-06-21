@@ -1,0 +1,58 @@
+seed: 42
+
+paths:
+  metadata: data/metadata.csv
+  audio_dir: data/audio
+  class_list: data/classes.txt
+  unlabeled_audio_dir: data/unlabeled_audio
+  weights_dir: weights
+  output_dir: experiments/results
+
+audio:
+  sample_rate: 32000
+  clip_duration: 5.0
+  shift_duration: 2.5
+
+spectrogram:
+  n_fft: 2048
+  win_length: 2048
+  hop_length: 768
+  n_mels: 192
+  f_min: 50
+  f_max: 15000
+  normalize: true
+
+model:
+  num_classes: 206
+  backbone: tf_efficientnetv2_s.in21k
+  pretrained: true
+  dropout: 0.2
+
+training:
+  batch_size: 16
+  epochs: 10
+  learning_rate: 0.0005
+  weight_decay: 0.00001
+  validation_size: 0.2
+  loss: weighted_focal_bce
+  focal_gamma: 2.0
+  label_smoothing: 0.005
+  hard_loss_weight: 0.6
+  num_workers: 0
+
+pseudo_labeling:
+  positive_threshold: 0.80
+  negative_threshold: 0.05
+  preserve_soft_labels: true
+
+ensemble:
+  regular_weight: 0.50
+  shifted_left_weight: 0.25
+  shifted_right_weight: 0.25
+  smoothing_weight: 0.10
+  probability_power: 1.0
+  aggregate_method: max
+
+evaluation:
+  threshold: 0.5
+  search_threshold: true

@@ -1,0 +1,10 @@
+def test_import_core_modules():
+    import bioacoustic.audio
+    import bioacoustic.dataset
+    import bioacoustic.ensemble
+    import bioacoustic.losses
+    import bioacoustic.metrics
+    import bioacoustic.models
+    import bioacoustic.spectrogram
+    import bioacoustic.training
+    import bioacoustic.utils

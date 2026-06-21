@@ -1,0 +1,40 @@
+seed: 42
+metadata_csv: data/train_metadata.csv
+audio_dir: data/train_audio
+unlabeled_audio_dir: data/unlabeled_soundscapes
+output_dir: outputs/pseudo_labeling
+teacher_checkpoint: outputs/sed/best.pt
+class_file: outputs/classes.txt
+filename_col: filename
+primary_col: primary_label
+secondary_col: secondary_labels
+fold: 0
+n_folds: 5
+use_secondary_labels: true
+
+sample_rate: 32000
+clip_duration: 5.0
+n_fft: 2048
+win_length: 2048
+hop_length: 768
+n_mels: 192
+f_min: 50
+f_max: 15000
+
+model_type: sed
+backbone: tf_efficientnetv2_s.in21k
+pretrained: false
+dropout: 0.2
+
+pseudo_csv: outputs/pseudo_labeling/pseudo_labels.csv
+min_max_probability: 0.5
+class_probability_floor: 0.1
+pseudo_sampling_ratio: 0.4
+pseudo_epochs: 3
+batch_size: 12
+num_workers: 2
+learning_rate: 0.0003
+weight_decay: 0.00001
+focal_gamma: 2.0
+label_smoothing: 0.005
+device: auto

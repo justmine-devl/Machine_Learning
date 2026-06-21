@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Datasets and audio (keep documentation and tiny intentional samples)
+data/audio/
+data/unlabeled_audio/
+data/raw/
+data/processed/
+*.ogg
+*.wav
+*.flac
+*.mp3
+!data/sample/**
+
+# Models and deployment artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.xml
+*.bin
+weights/**
+!weights/README.md
+
+# Generated predictions, caches, and experiment tracking
+outputs/
+output/
+predictions/
+*.npy
+*.npz
+*.parquet
+wandb/
+mlruns/
+experiments/results/
+
+# Local safety snapshot; canonical originals are tracked under legacy/
+legacy_original_snapshot/
