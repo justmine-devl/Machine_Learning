@@ -1,5 +1,0 @@
-model_setting,auc,map,precision,recall,f1,source
-Best single SED model,0.990,0.740,0.800,0.679,0.734,Report Table 6
-Teacher-student model,0.991,0.752,0.807,0.692,0.745,Report Table 6
-Self-distilled model,0.992,0.758,0.811,0.698,0.751,Report Table 6
-Ensemble model,0.993,0.765,0.815,0.704,0.755,Report Table 6

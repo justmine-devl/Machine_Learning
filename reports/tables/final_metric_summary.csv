@@ -1,0 +1,6 @@
+Metric,Value
+Final ensemble AUC,0.956
+Final ensemble mAP,0.632
+Final ensemble Precision,0.748
+Final ensemble Recall,0.586
+Final ensemble F1-score,0.657
