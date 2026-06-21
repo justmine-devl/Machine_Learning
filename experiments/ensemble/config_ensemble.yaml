@@ -1,0 +1,56 @@
+seed: 42
+output_dir: outputs/ensemble
+runtime:
+  prefer_cuda: true
+
+data:
+  train_csv: data/train_metadata.csv
+  train_audio_dir: data/train_audio
+  test_audio_dir: data/test_soundscapes
+  classes_path: data/classes.txt
+  filename_col: filename
+  primary_col: primary_label
+  secondary_col: secondary_labels
+  fold_col: fold
+  include_secondary: true
+
+cv:
+  n_splits: 5
+  fold: 0
+
+audio:
+  sample_rate: 32000
+  clip_duration: 5.0
+  shift: 2.5
+
+spectrogram:
+  n_fft: 2048
+  hop_length: 768
+  n_mels: 192
+  f_min: 50
+  f_max: 15000
+  normalize: true
+
+model:
+  model_type: sed
+  backbone: tf_efficientnetv2_s_in21ft1k
+  in_channels: 1
+  pretrained: false
+  dropout: 0.2
+
+checkpoints:
+  - weights/sed/best_fold0.pth
+  - weights/sed/best_fold1.pth
+  - weights/self_distillation/best_fold0.pth
+
+openvino:
+  enabled: false
+  regular_model_dir: weights/openvino/regular
+  shifted_model_dir: weights/openvino/shifted
+  device: CPU
+
+postprocessing:
+  blend_alpha: 0.5
+  temporal_smoothing: true
+  threshold: 0.5
+  power_gamma: 1.0

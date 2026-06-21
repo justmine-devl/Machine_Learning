@@ -1,0 +1,51 @@
+seed: 42
+output_dir: outputs/sed
+runtime:
+  prefer_cuda: true
+
+data:
+  train_csv: data/train_metadata.csv
+  train_audio_dir: data/train_audio
+  classes_path: data/classes.txt
+  filename_col: filename
+  primary_col: primary_label
+  secondary_col: secondary_labels
+  fold_col: fold
+  include_secondary: true
+
+cv:
+  n_splits: 5
+  fold: 0
+
+audio:
+  sample_rate: 32000
+  clip_duration: 5.0
+
+spectrogram:
+  n_fft: 2048
+  hop_length: 768
+  n_mels: 192
+  f_min: 50
+  f_max: 15000
+  normalize: true
+
+model:
+  backbone: tf_efficientnetv2_s_in21ft1k
+  in_channels: 1
+  pretrained: true
+  dropout: 0.2
+
+loss:
+  name: weighted_focal_bce
+  use_pos_weight: true
+  max_pos_weight: 20.0
+  gamma: 2.0
+  label_smoothing: 0.0
+
+training:
+  epochs: 10
+  batch_size: 16
+  valid_batch_size: 32
+  num_workers: 2
+  learning_rate: 0.0003
+  weight_decay: 0.0001
