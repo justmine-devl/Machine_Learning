@@ -11,12 +11,12 @@ import torch
 
 try:
     import librosa
-except Exception:  # pragma: no cover
+except Exception: 
     librosa = None
 
 try:
     import torchaudio.transforms as T
-except Exception:  # pragma: no cover
+except Exception:  
     T = None
 
 if TYPE_CHECKING:
@@ -32,9 +32,7 @@ def load_audio(
     res_type: str = "kaiser_best",
 ) -> np.ndarray:
     """Load an audio file as float32 waveform.
-
     Parameters
-    ----------
     path:
         Audio path.
     sample_rate:

@@ -49,7 +49,6 @@ def focal_bce_loss(
     alpha: Optional[float] = None,
 ) -> torch.Tensor:
     """Weighted Focal BCE with logits.
-
     If pos_weight is None, this becomes standard Focal BCE.
     """
     targets = smooth_targets(targets, label_smoothing)

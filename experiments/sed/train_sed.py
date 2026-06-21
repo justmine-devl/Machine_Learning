@@ -12,7 +12,6 @@ def add_project_src_to_path() -> Path:
             if str(src) not in sys.path:
                 sys.path.insert(0, str(src))
             return parent
-    # Script is usually experiments/<method>/file.py, so repo root is two levels up.
     fallback = current.parents[2] if len(current.parents) >= 3 else current.parent
     src = fallback / "src"
     if str(src) not in sys.path:

@@ -25,7 +25,6 @@ def blend_regular_shifted(
     alpha: float = 0.5,
 ) -> np.ndarray:
     """Blend regular chunk predictions with neighboring shifted-window predictions.
-
     For middle chunks:
         final[i] = alpha * regular[i] + (1-alpha) * 0.5 * (shifted[i-1] + shifted[i])
     """

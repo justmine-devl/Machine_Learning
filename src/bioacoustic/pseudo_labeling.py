@@ -26,7 +26,6 @@ def select_pseudo_labels(
     class_prob_threshold: float = 0.1,
 ) -> pd.DataFrame:
     """Select pseudo-labeled chunks from model probabilities.
-
     Keeps chunks whose maximum class probability is at least min_max_prob,
     then zeroes out class probabilities below class_prob_threshold.
     """

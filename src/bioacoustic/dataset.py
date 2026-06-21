@@ -24,7 +24,7 @@ from .spectrogram import log_mel_spectrogram
 
 try:
     import librosa
-except Exception:  # pragma: no cover
+except Exception:  
     librosa = None
 
 if TYPE_CHECKING:

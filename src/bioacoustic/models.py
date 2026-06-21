@@ -16,7 +16,7 @@ from .spectrogram import SpecFeatureExtractor
 
 try:
     import timm
-except Exception:  # pragma: no cover
+except Exception:  
     timm = None
 
 
@@ -25,12 +25,6 @@ if TYPE_CHECKING:
 
 
 class AttentionPooling(nn.Module):
-    """Class-wise temporal attention pooling for SED features.
-
-    Input shape: [B, C, T]
-    Output clip logits: [B, num_classes]
-    """
-
     def __init__(self, in_channels: int, num_classes: int) -> None:
         super().__init__()
         self.att = nn.Conv1d(in_channels, num_classes, kernel_size=1)
@@ -77,12 +71,6 @@ class EfficientNetClassifier(nn.Module):
 
 
 class EfficientNetSED(nn.Module):
-    """EfficientNet-based sound event detection model.
-
-    The model preserves a temporal feature map, averages over frequency,
-    and applies class-wise attention pooling.
-    """
-
     def __init__(
         self,
         num_classes: int,
@@ -147,12 +135,6 @@ class GeMFreq(nn.Module):
 
 
 class AttHead(nn.Module):
-    """SED head copied from the public inference notebook.
-
-    The public code keeps only framewise logits for inference-time overlap
-    aggregation. Training pools those dense logits into 5-second targets.
-    """
-
     def __init__(
         self, in_chans: int, p: float = 0.5, num_class: int = 206, hidden_dim: int = 512
     ):

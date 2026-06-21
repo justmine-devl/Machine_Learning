@@ -12,7 +12,7 @@ from .spectrogram import batch_log_mel
 
 try:
     import openvino as ov
-except Exception:  # pragma: no cover
+except Exception:  
     ov = None
 
 

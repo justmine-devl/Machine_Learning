@@ -187,24 +187,24 @@ class BirdCLEFTrainingConfig:
     sample_rate: int = 32000
     train_duration_sec: int = 20
     label_frame_sec: int = 5
-    soundscape_stride_sec: int = 5  # ASSUMPTION: not publicly available; tune this
+    soundscape_stride_sec: int = 5 
     model_key: str = "model_config_6"
     pretrained_backbone: bool = False
     strict_class_order: bool = False
 
     # Training
-    batch_size: int = 2  # Memory-safe default for 20-second B4 chunks.
+    batch_size: int = 2  
     gradient_accumulation_steps: int = 8
     num_workers: int = 0
-    epochs_teacher: int = 8  # ASSUMPTION: not publicly available; tune this
-    epochs_student: int = 5  # ASSUMPTION: not publicly available; tune this
+    epochs_teacher: int = 8  
+    epochs_student: int = 5  
     num_noisy_student_iterations: int = 2
-    learning_rate: float = 3e-4  # ASSUMPTION: not publicly available; tune this
-    head_learning_rate: float = 1e-3  # ASSUMPTION: not publicly available; tune this
+    learning_rate: float = 3e-4  
+    head_learning_rate: float = 1e-3  
     min_learning_rate: float = 1e-6
     restart_epochs: int = 5
-    weight_decay: float = 1e-4  # ASSUMPTION: not publicly available; tune this
-    gradient_clip_norm: float = 1.0  # ASSUMPTION: not publicly available; tune this
+    weight_decay: float = 1e-4  
+    gradient_clip_norm: float = 1.0  
     mixed_precision: bool = True
     train_backbone: bool = True
     save_every_epochs: int = 0
@@ -214,21 +214,21 @@ class BirdCLEFTrainingConfig:
     # Validation
     n_folds: int = 5
     fold: int = 0
-    val_threshold: float = 0.5  # ASSUMPTION: not publicly available; tune this
+    val_threshold: float = 0.5  
 
     # Loss
     loss_type: str = "cross_entropy"
-    focal_gamma: float = 2.0  # ASSUMPTION: not publicly available; tune this
-    focal_alpha: Optional[float] = None  # ASSUMPTION: not publicly available; tune this
+    focal_gamma: float = 2.0  
+    focal_alpha: Optional[float] = None  
     label_smoothing: float = 0.0
     use_pos_weight: bool = False
 
     # Augmentation
-    random_gain_db: float = 6.0  # ASSUMPTION: not publicly available; tune this
-    gaussian_noise_std: float = 0.003  # ASSUMPTION: not publicly available; tune this
-    time_shift_sec: float = 1.0  # ASSUMPTION: not publicly available; tune this
-    time_mask_param: int = 48  # ASSUMPTION: not publicly available; tune this
-    freq_mask_param: int = 24  # ASSUMPTION: not publicly available; tune this
+    random_gain_db: float = 6.0  
+    gaussian_noise_std: float = 0.003 
+    time_shift_sec: float = 1.0  
+    time_mask_param: int = 48  
+    freq_mask_param: int = 24  
     teacher_aug_strength: str = "moderate"
     student_aug_strength: str = "strong"
     mixup_focal_pseudo: bool = True
@@ -240,8 +240,8 @@ class BirdCLEFTrainingConfig:
     pseudo_top_k: Optional[int] = None
     pseudo_power: float = 1.0
     pseudo_power_iter1: float = 1.0
-    pseudo_power_iter2: float = 1.5  # ASSUMPTION: not publicly available; tune this
-    pseudo_power_iter3: float = 2.0  # ASSUMPTION: not publicly available; tune this
+    pseudo_power_iter2: float = 1.5  
+    pseudo_power_iter3: float = 2.0  
     pseudo_power_iter4: float = 1.6666666667
     min_confidence_for_retention: float = 0.0
 

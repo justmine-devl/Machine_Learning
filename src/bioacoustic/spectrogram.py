@@ -10,12 +10,12 @@ import torch.nn as nn
 
 try:
     import librosa
-except Exception:  # pragma: no cover
+except Exception:  
     librosa = None
 
 try:
     import torchaudio.transforms as T
-except Exception:  # pragma: no cover
+except Exception:  
     T = None
 
 
