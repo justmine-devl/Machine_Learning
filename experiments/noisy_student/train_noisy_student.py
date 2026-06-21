@@ -1,55 +1,87 @@
-# Allow running the experiment script directly from any subfolder.
+"""Run the inference-compatible BirdCLEF 2025 multi-iterative Noisy Student pipeline."""
+
 from __future__ import annotations
+
+import argparse
+import json
 import sys
+from dataclasses import fields
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 def add_project_src_to_path() -> Path:
     current = Path(__file__).resolve()
-    for parent in [current.parent, *current.parents]:
+    for parent in current.parents:
         src = parent / "src"
         if src.exists():
-            if str(src) not in sys.path:
-                sys.path.insert(0, str(src))
+            sys.path.insert(0, str(src))
             return parent
-    # Script is usually experiments/<method>/file.py, so repo root is two levels up.
-    fallback = current.parents[2] if len(current.parents) >= 3 else current.parent
-    src = fallback / "src"
-    if str(src) not in sys.path:
-        sys.path.insert(0, str(src))
-    return fallback
+    raise RuntimeError("Could not locate the repository src directory")
 
 
 PROJECT_ROOT = add_project_src_to_path()
 
+from bioacoustic.training import BirdCLEFTrainingConfig
 
-import argparse
-import subprocess
-import sys
-from pathlib import Path
 
-from bioacoustic.utils import load_config, save_json, seed_everything
+def parse_scalar(value: str) -> Any:
+    """Parse CLI values using YAML scalar rules (bool, null, number, or string)."""
+    return yaml.safe_load(value)
+
+
+def load_training_config(path: str, overrides: list[str]) -> BirdCLEFTrainingConfig:
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    raw.pop("profile", None)
+    valid = {item.name for item in fields(BirdCLEFTrainingConfig)}
+    unknown = sorted(set(raw) - valid)
+    if unknown:
+        raise ValueError(f"Unknown config keys: {unknown}")
+    for item in overrides:
+        if "=" not in item:
+            raise ValueError(f"--set expects KEY=VALUE, received: {item!r}")
+        key, value = item.split("=", 1)
+        if key not in valid:
+            raise ValueError(f"Unknown TrainingConfig field: {key}")
+        raw[key] = parse_scalar(value)
+    return BirdCLEFTrainingConfig(**raw)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', required=True)
-    parser.add_argument('--skip_pseudo_generation', action='store_true')
+    parser = argparse.ArgumentParser(
+        description="BirdCLEF 2025 inference-compatible multi-iterative Noisy Student training"
+    )
+    parser.add_argument("--config", required=True)
+    parser.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override any training configuration field; repeat this option as needed.",
+    )
+    parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=None)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    cfg = load_config(args.config)
-    seed_everything(int(cfg.get('seed', 42)))
-    here = Path(__file__).resolve().parent
-    pseudo_script = here.parent / 'pseudo_labeling' / 'generate_pseudo_labels.py'
-    train_script = here.parent / 'pseudo_labeling' / 'train_with_pseudo_labels.py'
-    if not args.skip_pseudo_generation:
-        subprocess.check_call([sys.executable, str(pseudo_script), '--config', args.config])
-    subprocess.check_call([sys.executable, str(train_script), '--config', args.config])
-    save_json({'status': 'completed', 'method': 'noisy_student'}, Path(cfg.get('output_dir', 'outputs/noisy_student')) / 'noisy_student_summary.json')
+    overrides = list(args.set)
+    if args.debug is not None:
+        overrides.append(f"debug={json.dumps(args.debug)}")
+
+    config = load_training_config(args.config, overrides)
+    # Keep CLI help and config validation usable without importing the full
+    # torch/torchaudio/timm training stack.
+    from bioacoustic.training import BirdCLEFTrainingPipeline
+
+    print("Resolved BirdCLEF Noisy Student config:", flush=True)
+    print(json.dumps(config.to_dict(), indent=2, default=str), flush=True)
+    outputs = BirdCLEFTrainingPipeline(config).run()
+    print("Pipeline outputs:", flush=True)
+    print(json.dumps(outputs, indent=2, default=str), flush=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

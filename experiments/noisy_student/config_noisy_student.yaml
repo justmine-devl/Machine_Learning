@@ -1,67 +1,71 @@
-seed: 42
+profile: birdclef2025_inference_compatible_noisy_student
+
+# Repository-relative paths. Update these values for the local dataset layout.
+data_root: data/birdclef-2025
+train_audio_dir: data/birdclef-2025/train_audio
+train_soundscapes_dir: data/birdclef-2025/train_soundscapes
+train_csv: data/birdclef-2025/train.csv
+taxonomy_csv: data/birdclef-2025/taxonomy.csv
+sample_submission_csv: data/birdclef-2025/sample_submission.csv
 output_dir: outputs/noisy_student
-runtime:
-  prefer_cuda: true
+resume_dir: null
+auto_discover_paths: false
 
-data:
-  train_csv: data/train_metadata.csv
-  train_audio_dir: data/train_audio
-  unlabeled_audio_dir: data/unlabeled_soundscapes
-  classes_path: data/classes.txt
-  pseudo_labels_path: outputs/noisy_student/pseudo_labels.csv
-  filename_col: filename
-  primary_col: primary_label
-  secondary_col: secondary_labels
-  fold_col: fold
-  include_secondary: true
+debug: true
+seed: 42
+deterministic: false
+auto_resume: true
+reuse_pseudo: true
+force_retrain: false
 
-cv:
-  n_splits: 5
-  fold: 0
+# Inference-compatible input and class layout.
+sample_rate: 32000
+train_duration_sec: 20
+label_frame_sec: 5
+soundscape_stride_sec: 5
+model_key: model_config_6
+pretrained_backbone: false
+strict_class_order: false
 
-audio:
-  sample_rate: 32000
-  clip_duration: 5.0
-  shift: 2.5
+# Stage 0 supervised teacher, followed by iterative students.
+batch_size: 2
+gradient_accumulation_steps: 8
+num_workers: 0
+epochs_teacher: 10
+epochs_student: 30
+num_noisy_student_iterations: 4
+learning_rate: 0.0005
+head_learning_rate: 0.0005
+min_learning_rate: 0.000001
+restart_epochs: 5
+weight_decay: 0.0001
+gradient_clip_norm: 1.0
+mixed_precision: true
+train_backbone: true
+save_every_epochs: 0
+save_best_training_checkpoint: false
+log_every_steps: 50
 
-spectrogram:
-  n_fft: 2048
-  hop_length: 768
-  n_mels: 192
-  f_min: 50
-  f_max: 15000
-  normalize: true
+n_folds: 5
+fold: 0
+loss_type: cross_entropy
+label_smoothing: 0.0
+use_pos_weight: false
 
-teacher:
-  checkpoint: weights/sed/best_fold0.pth
+# Multi-iterative teacher-student behavior.
+mixup_focal_pseudo: true
+pseudo_mixup_lambda: 0.5
+student_drop_path_rate: 0.15
+pseudo_threshold: 0.0
+pseudo_power_iter1: 1.0
+pseudo_power_iter2: 1.5384615385  # 1 / 0.65
+pseudo_power_iter3: 1.8181818182  # 1 / 0.55
+pseudo_power_iter4: 1.6666666667  # 1 / 0.6
+pseudo_power: 1.6666666667
+min_confidence_for_retention: 0.0
 
-model:
-  backbone: tf_efficientnetv2_s_in21ft1k
-  in_channels: 1
-  pretrained: false
-  dropout: 0.2
-
-pseudo_labeling:
-  min_max_prob: 0.55
-  class_prob_threshold: 0.10
-  labeled_ratio: 0.6
-  audio_extensions: [".ogg", ".wav", ".mp3", ".flac"]
-
-loss:
-  name: weighted_focal_bce
-  use_pos_weight: true
-  max_pos_weight: 20.0
-  gamma: 2.0
-  label_smoothing: 0.0
-
-training:
-  epochs: 8
-  batch_size: 16
-  valid_batch_size: 32
-  num_workers: 2
-  learning_rate: 0.0002
-  weight_decay: 0.0001
-
-student:
-  hard_weight: 0.6
-  pseudo_epochs: 3
+# Debug-only limits.
+debug_num_train_files: 200
+debug_num_soundscapes: 20
+debug_epochs: 1
+debug_num_noisy_student_iterations: 1

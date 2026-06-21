@@ -44,6 +44,11 @@ The default report-aligned acoustic configuration is:
 | Frequency range | 50-15,000 Hz |
 | Target classes | 206 |
 
+The `experiments/noisy_student` profile is intentionally different from these
+generic defaults. It uses the inference-compatible BirdCLEF setup: 20-second
+audio, four 5-second targets, 224 mel bins, 4,096-point FFT, hop 1,252, a
+three-channel SED backbone, and the fixed inference class order.
+
 ## Repository structure
 
 ```text
@@ -354,12 +359,18 @@ python experiments/noisy_student/train_noisy_student.py \
   --config experiments/noisy_student/config_noisy_student.yaml
 ```
 
-Use `--skip_pseudo_generation` when the configured pseudo-label table already exists:
+This runner trains the supervised teacher, generates soundscape pseudo labels,
+and trains each student iteration in sequence. Its specialized classes extend
+the existing `audio.py`, `dataset.py`, `models.py`, `losses.py`,
+`pseudo_labeling.py`, and `training.py` modules. Existing pseudo labels and
+checkpoints are reused when `auto_resume` and `reuse_pseudo` are enabled.
+
+Paths and any training field can be overridden without editing the YAML:
 
 ```bash
 python experiments/noisy_student/train_noisy_student.py \
   --config experiments/noisy_student/config_noisy_student.yaml \
-  --skip_pseudo_generation
+  --no-debug
 ```
 
 ### Self-distillation
@@ -417,13 +428,13 @@ python experiments/analysis/plot_curves.py \
 
 | Module | Responsibility |
 |---|---|
-| `audio.py` | Loading, resampling, crop/pad, regular and shifted segmentation |
-| `spectrogram.py` | Log-mel extraction and batched conversion |
-| `dataset.py` | Metadata, labels, folds, supervised and pseudo-label datasets |
-| `models.py` | Clip classifier, SED model, temporal attention, model factory |
-| `losses.py` | BCE, weighted BCE, focal BCE, soft-label and distillation loss |
-| `training.py` | Train/validation loops and checkpoint persistence |
-| `pseudo_labeling.py` | Confidence selection, storage, and labeled/pseudo mixing |
+| `audio.py` | Loading, crop/pad modes, waveform augmentation, segmentation, and MixUp |
+| `spectrogram.py` | NumPy and torch log-mel extraction, normalization, and resizing |
+| `dataset.py` | Metadata, class order, folds, supervised and weighted pseudo-label datasets |
+| `models.py` | Generic classifiers plus the inference-compatible SED head and model factory |
+| `losses.py` | BCE, focal BCE, soft cross-entropy, soft-label, and distillation loss |
+| `training.py` | Generic loops plus multi-iterative training, checkpoint, and resume orchestration |
+| `pseudo_labeling.py` | Confidence selection, power transform, storage, and soundscape pseudo-label generation |
 | `distillation.py` | Teacher inference and soft-target persistence |
 | `ensemble.py` | Averaging, shifted blending, smoothing, power adjustment |
 | `openvino_ensemble.py` | OpenVINO discovery, compilation, and inference |

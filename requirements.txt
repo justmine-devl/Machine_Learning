@@ -10,6 +10,7 @@ soundfile>=0.12
 
 # Deep learning models
 torch>=2.0
+torchaudio>=2.0
 timm>=0.9
 
 # Analysis, progress, and report figures

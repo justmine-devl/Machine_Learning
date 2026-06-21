@@ -1,10 +1,19 @@
 """Evaluation metrics for multi-label classification."""
+
 from __future__ import annotations
 
 from typing import Dict, Iterable, Tuple
 
 import numpy as np
-from sklearn.metrics import average_precision_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    average_precision_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+
+from .dataset import CLASS_ORDER
 
 
 def _valid_auc_classes(y_true: np.ndarray) -> np.ndarray:
@@ -27,7 +36,9 @@ def safe_micro_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     return float(roc_auc_score(y_true[:, valid], y_pred[:, valid], average="micro"))
 
 
-def compute_multilabel_metrics(y_true: np.ndarray, y_pred: np.ndarray, threshold: float = 0.5) -> Dict[str, float]:
+def compute_multilabel_metrics(
+    y_true: np.ndarray, y_pred: np.ndarray, threshold: float = 0.5
+) -> Dict[str, float]:
     y_true = np.asarray(y_true).astype(int)
     y_pred = np.asarray(y_pred).astype(float)
     y_bin = (y_pred >= threshold).astype(int)
@@ -36,11 +47,19 @@ def compute_multilabel_metrics(y_true: np.ndarray, y_pred: np.ndarray, threshold
         "micro_auc": safe_micro_auc(y_true, y_pred),
         "macro_map": float(average_precision_score(y_true, y_pred, average="macro")),
         "micro_map": float(average_precision_score(y_true, y_pred, average="micro")),
-        "precision_macro": float(precision_score(y_true, y_bin, average="macro", zero_division=0)),
-        "recall_macro": float(recall_score(y_true, y_bin, average="macro", zero_division=0)),
+        "precision_macro": float(
+            precision_score(y_true, y_bin, average="macro", zero_division=0)
+        ),
+        "recall_macro": float(
+            recall_score(y_true, y_bin, average="macro", zero_division=0)
+        ),
         "f1_macro": float(f1_score(y_true, y_bin, average="macro", zero_division=0)),
-        "precision_micro": float(precision_score(y_true, y_bin, average="micro", zero_division=0)),
-        "recall_micro": float(recall_score(y_true, y_bin, average="micro", zero_division=0)),
+        "precision_micro": float(
+            precision_score(y_true, y_bin, average="micro", zero_division=0)
+        ),
+        "recall_micro": float(
+            recall_score(y_true, y_bin, average="micro", zero_division=0)
+        ),
         "f1_micro": float(f1_score(y_true, y_bin, average="micro", zero_division=0)),
         "threshold": float(threshold),
     }
@@ -62,7 +81,9 @@ def search_best_threshold(
     return best_t, best_f1
 
 
-def per_class_metrics(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str] | None = None) -> list[dict]:
+def per_class_metrics(
+    y_true: np.ndarray, y_pred: np.ndarray, class_names: list[str] | None = None
+) -> list[dict]:
     y_true = np.asarray(y_true).astype(int)
     y_pred = np.asarray(y_pred).astype(float)
     n_classes = y_true.shape[1]
@@ -79,3 +100,35 @@ def per_class_metrics(y_true: np.ndarray, y_pred: np.ndarray, class_names: list[
             row["ap"] = float("nan")
         rows.append(row)
     return rows
+
+
+def compute_birdclef_metrics(
+    y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5
+) -> Dict[str, float]:
+    y_true_flat = y_true.reshape(-1, y_true.shape[-1]).astype(np.int32)
+    y_prob_flat = y_prob.reshape(-1, y_prob.shape[-1])
+    metrics = compute_multilabel_metrics(y_true_flat, y_prob_flat, threshold=threshold)
+    metrics.update(
+        {
+            "macro_f1": metrics["f1_macro"],
+            "micro_f1": metrics["f1_micro"],
+            "positive_precision": metrics["precision_micro"],
+            "positive_recall": metrics["recall_micro"],
+            "binary_accuracy": float(
+                (y_true_flat == (y_prob_flat >= threshold)).mean()
+            ),
+        }
+    )
+
+    per_class_auc = {}
+    for i, label in enumerate(CLASS_ORDER):
+        if len(np.unique(y_true_flat[:, i])) < 2:
+            continue
+        try:
+            auc = roc_auc_score(y_true_flat[:, i], y_prob_flat[:, i])
+            per_class_auc[f"auc_{label}"] = float(auc)
+        except Exception:
+            pass
+    metrics["valid_auc_classes"] = len(per_class_auc)
+    metrics.update(per_class_auc)
+    return metrics
